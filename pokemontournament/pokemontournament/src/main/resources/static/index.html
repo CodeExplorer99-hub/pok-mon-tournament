@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokémon Tournament - Draft Mode</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+
+        <!-- ===== HEADER: Intestazione dell'applicazione con titolo e sottotitolo ===== -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title">⚡ POKÉMON TOURNAMENT ⚡</h1>
+                <p class="subtitle">Draft Mode - Build Your Team</p>
+            </div>
+        </header>
+
+        <!-- ===== MAIN CONTENT: Contenitore principale che cambia sezione a seconda dello stato ===== -->
+        <main class="main-content">
+
+            <!-- ===== SEZIONE 1: DRAFT ===== 
+                 Quando l'utente sceglie i Pokemon per le due squadre
+                 Visibile all'inizio, nascosta quando inizia il torneo
+            -->
+            <section class="draft-section" id="draftSection">
+                <div class="draft-container">
+
+                    <!-- LEFT PANEL: Lista di tutti i Pokemon disponibili da scegliere -->
+                    <div class="available-pokemon">
+                        <h2>Available Pokémon</h2>
+                        
+                        <!-- Barra di ricerca e filtro per tipo -->
+                        <div class="search-filter">
+                            <input type="text" id="searchInput" placeholder="Search Pokémon..." class="search-box">
+                            <select id="typeFilter" class="type-filter">
+                                <option value="">All Types</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Grid dove appaiono le card dei Pokemon (generato da JavaScript) -->
+                        <div class="pokemon-grid" id="pokemonGrid">
+                            <!-- Pokemon cards loaded by JS -->
+                        </div>
+                    </div>
+
+                    <!-- CENTER PANEL: Le due squadre Team A e Team B -->
+                    <div class="teams-container">
+
+                        <!-- TEAM A: Squadra rossa (3 slot per Pokemon) -->
+                        <div class="team-section team-a">
+                            <h2 class="team-title">Team A</h2>
+                            
+                            <!-- 3 slot vuoti dove trascinare i Pokemon -->
+                            <div class="team-roster" id="teamARoster">
+                                <div class="roster-slot empty" data-slot="0"></div>
+                                <div class="roster-slot empty" data-slot="1"></div>
+                                <div class="roster-slot empty" data-slot="2"></div>
+                            </div>
+                            
+                            <!-- Statistiche totali della squadra (HP totali, Attacco totale, etc) -->
+                            <div class="team-stats" id="teamAStats">
+                                <p>Total HP: <span>0</span></p>
+                                <p>Total Atk: <span>0</span></p>
+                            </div>
+                        </div>
+
+                        <!-- DIVIDER: Separatore visuale tra le due squadre -->
+                        <div class="vs-divider">VS</div>
+
+                        <!-- TEAM B: Squadra blu (3 slot per Pokemon) -->
+                        <div class="team-section team-b">
+                            <h2 class="team-title">Team B</h2>
+                            
+                            <!-- 3 slot vuoti dove trascinare i Pokemon -->
+                            <div class="team-roster" id="teamBRoster">
+                                <div class="roster-slot empty" data-slot="0"></div>
+                                <div class="roster-slot empty" data-slot="1"></div>
+                                <div class="roster-slot empty" data-slot="2"></div>
+                            </div>
+                            
+                            <!-- Statistiche totali della squadra -->
+                            <div class="team-stats" id="teamBStats">
+                                <p>Total HP: <span>0</span></p>
+                                <p>Total Atk: <span>0</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PULSANTI: Clear teams e Start tournament -->
+                <div class="controls">
+                    <button id="clearTeamsBtn" class="btn btn-secondary">Clear Teams</button>
+                    <!-- Pulsante disabilitato fino a quando entrambe le squadre non hanno 3 Pokemon -->
+                    <button id="startTournamentBtn" class="btn btn-primary" disabled>Start Tournament</button>
+                </div>
+            </section>
+
+            <!-- ===== SEZIONE 2: TOURNAMENT ===== 
+                 Mostra il bracket del torneo con tutti gli scontri
+                 Nascosta durante il draft, visibile dopo Start Tournament
+            -->
+            <section class="tournament-section hidden" id="tournamentSection">
+                <h2>Tournament Bracket</h2>
+                
+                <!-- Grid dove appaiono gli scontri del torneo (generato da JavaScript) -->
+                <div class="tournament-bracket" id="tournamentBracket">
+                    <!-- Battles loaded by JS -->
+                </div>
+                
+                <!-- Pulsanti per navigare le battaglie -->
+                <div class="tournament-controls">
+                    <button id="nextBattleBtn" class="btn btn-primary">Next Battle</button>
+                    <button id="backToDraftBtn" class="btn btn-secondary">Back to Draft</button>
+                </div>
+            </section>
+
+            <!-- ===== SEZIONE 3: BATTLE ===== 
+                 Arena di battaglia: due Pokemon si affrontano
+                 Un Pokemon attacca, l'HP dell'altro diminuisce, turni alternati
+            -->
+            <section class="battle-section hidden" id="battleSection">
+                <div class="battle-arena">
+
+                    <!-- LEFT: Primo Pokemon in battaglia -->
+                    <div class="battle-pokemon left">
+                        <div class="pokemon-card-battle" id="battlePokemon1">
+                            <!-- Immagine grande del Pokemon -->
+                            <div class="pokemon-image-large">
+                                <img id="p1Img" src="" alt="">
+                            </div>
+                            
+                            <!-- Info del Pokemon: nome, HP bar, tipi -->
+                            <div class="pokemon-info-battle">
+                                <h3 id="p1Name"></h3>
+                                <div class="battle-stats">
+                                    <!-- Barra HP che diminuisce durante la battaglia -->
+                                    <div class="stat-bar">
+                                        <label>HP</label>
+                                        <div class="hp-bar">
+                                            <div class="hp-fill" id="p1HPBar"></div>
+                                        </div>
+                                        <span id="p1HP"></span>
+                                    </div>
+                                </div>
+                                <!-- Badge con i tipi di questo Pokemon -->
+                                <div class="types" id="p1Types"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CENTER: Log della battaglia (chi attacca, danni, messaggi) -->
+                    <div class="battle-log-container">
+                        <!-- Scrollable log dove appaiono i messaggi della battaglia -->
+                        <div class="battle-log" id="battleLog">
+                            <!-- Battle messages loaded by JS -->
+                        </div>
+                        <!-- Pulsante per avanzare turno per turno -->
+                        <button id="continueBattleBtn" class="btn btn-primary">Continue</button>
+                    </div>
+
+                    <!-- RIGHT: Secondo Pokemon in battaglia -->
+                    <div class="battle-pokemon right">
+                        <div class="pokemon-card-battle" id="battlePokemon2">
+                            <!-- Immagine grande del Pokemon -->
+                            <div class="pokemon-image-large">
+                                <img id="p2Img" src="" alt="">
+                            </div>
+                            
+                            <!-- Info del Pokemon: nome, HP bar, tipi -->
+                            <div class="pokemon-info-battle">
+                                <h3 id="p2Name"></h3>
+                                <div class="battle-stats">
+                                    <!-- Barra HP che diminuisce durante la battaglia -->
+                                    <div class="stat-bar">
+                                        <label>HP</label>
+                                        <div class="hp-bar">
+                                            <div class="hp-fill" id="p2HPBar"></div>
+                                        </div>
+                                        <span id="p2HP"></span>
+                                    </div>
+                                </div>
+                                <!-- Badge con i tipi di questo Pokemon -->
+                                <div class="types" id="p2Types"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== SEZIONE 4: RESULTS ===== 
+                 Mostra il vincitore finale del torneo
+                 Visibile solo alla fine di tutti gli scontri
+            -->
+            <section class="results-section hidden" id="resultsSection">
+                <div class="results-container">
+                    <h2>🏆 Tournament Winner 🏆</h2>
+                    
+                    <!-- Card grande con il Pokemon vincitore, immagine, nome, stats -->
+                    <div class="winner-card" id="winnerCard">
+                        <!-- Winner displayed by JS -->
+                    </div>
+                    
+                    <!-- Pulsante per ricominciare con un nuovo torneo -->
+                    <button id="restartBtn" class="btn btn-primary">Start New Tournament</button>
+                </div>
+            </section>
+        </main>
+
+        <!-- ===== FOOTER: Piè di pagina con crediti ===== -->
+        <footer class="footer">
+            <p>Pokémon Tournament © 2026 | Built with Spring Boot + JavaScript</p>
+        </footer>
+    </div>
+
+    <!-- ===== SCRIPT: File JavaScript che gestisce tutta la logica ===== -->
+    <script src="js/app.js"></script>
+</body>
+</html>
