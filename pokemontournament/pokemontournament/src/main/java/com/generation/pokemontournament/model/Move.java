@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "move")
 @Data
-@NoArgsConstructor
+@NoArgsConstructor       //djdcbdbcbcdbcbdjc
 @AllArgsConstructor
 public class Move {
 

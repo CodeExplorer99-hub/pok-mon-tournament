@@ -339,75 +339,56 @@ function startSingleBattle(matchIndex) {
     const pokemon1 = teamA[matchIndex];  // Giocatore
     const pokemon2 = teamB[matchIndex];  // CPU
 
-    // Salva l'indice dello scontro corrente
     currentMatchIndex = matchIndex;
 
-    // Inizializza gli HP correnti
     currentHpP1 = pokemon1.baseHp;
     currentHpP2 = pokemon2.baseHp;
     maxHpP1 = pokemon1.baseHp;
     maxHpP2 = pokemon2.baseHp;
 
-    // Segna la battaglia come in corso
     battleInProgress = true;
 
-    // Nascondi bracket, mostra arena
     document.getElementById('tournamentSection').classList.add('hidden');
     document.getElementById('battleSection').classList.remove('hidden');
 
-    // Mostra i dati dei Pokemon nell'arena
     displayBattleUI(pokemon1, pokemon2);
-
-    // Mostra i pulsanti delle mosse del giocatore
     displayMovesButtons(pokemon1, pokemon2);
 
-    // Pulisci il log
     document.getElementById('battleLog').innerHTML = '';
-
-    // Nascondi il pulsante Continue (apparirà solo a fine battaglia)
     document.getElementById('continueBattleBtn').style.display = 'none';
 
     addLogMessage(`⚔️ Inizia la battaglia! ${pokemon1.name} VS ${pokemon2.name}!`, 'info');
+
 }
 
 // ============================================
 // FUNZIONE: Mostra l'interfaccia della battaglia
 // ============================================
 function displayBattleUI(pokemon1, pokemon2) {
-    // Pokemon 1 (giocatore - sinistra)
+    // ===== Pokemon 1 (giocatore - sinistra) =====
     document.getElementById('p1Img').src = `${POKEMON_IMAGE_BASE}/${pokemon1.pokedexNumber}.png`;
     document.getElementById('p1Name').textContent = pokemon1.name;
     document.getElementById('p1HP').textContent = `${pokemon1.baseHp}/${pokemon1.baseHp}`;
     document.getElementById('p1HPBar').style.width = '100%';
-    
+
+
     const p1TypesDiv = document.getElementById('p1Types');
     p1TypesDiv.innerHTML = `
-        <span class="type-badge" style="background-color: ${pokemon1.type1.color}">
-            ${pokemon1.type1.name}
-        </span>
-        ${pokemon1.type2 ? `
-            <span class="type-badge" style="background-color: ${pokemon1.type2.color}">
-                ${pokemon1.type2.name}
-            </span>
-        ` : ''}
+        <span class="type-badge" style="background-color: ${pokemon1.type1.color}">${pokemon1.type1.name}</span>
+        ${pokemon1.type2 ? `<span class="type-badge" style="background-color: ${pokemon1.type2.color}">${pokemon1.type2.name}</span>` : ''}
     `;
-    
-    // Pokemon 2 (CPU - destra)
+
+    // ===== Pokemon 2 (CPU - destra) =====
     document.getElementById('p2Img').src = `${POKEMON_IMAGE_BASE}/${pokemon2.pokedexNumber}.png`;
     document.getElementById('p2Name').textContent = pokemon2.name;
     document.getElementById('p2HP').textContent = `${pokemon2.baseHp}/${pokemon2.baseHp}`;
     document.getElementById('p2HPBar').style.width = '100%';
-    
+
+
     const p2TypesDiv = document.getElementById('p2Types');
     p2TypesDiv.innerHTML = `
-        <span class="type-badge" style="background-color: ${pokemon2.type1.color}">
-            ${pokemon2.type1.name}
-        </span>
-        ${pokemon2.type2 ? `
-            <span class="type-badge" style="background-color: ${pokemon2.type2.color}">
-                ${pokemon2.type2.name}
-            </span>
-        ` : ''}
+        <span class="type-badge" style="background-color: ${pokemon2.type1.color}">${pokemon2.type1.name}</span>
+        ${pokemon2.type2 ? `<span class="type-badge" style="background-color: ${pokemon2.type2.color}">${pokemon2.type2.name}</span>` : ''}
     `;
 }
 
@@ -433,14 +414,18 @@ function displayMovesButtons(pokemon1, pokemon2) {
 
     movesContainer.innerHTML = '<p style="width:100%; text-align:center; font-weight:bold;">Scegli una mossa:</p>';
 
+    const SPECIAL_TYPES = new Set(['Fire','Water','Grass','Electric','Ice','Psychic','Dragon','Dark','Fairy']);
+
     // Crea un pulsante per ogni mossa del Pokemon del giocatore
     pokemon1.moves.forEach(move => {
+        const isSpecial = SPECIAL_TYPES.has(move.type.name);
+        const categoryLabel = move.power === 0 ? 'STATO' : (isSpecial ? 'SPC' : 'FIS');
         const btn = document.createElement('button');
         btn.className = 'btn btn-primary';
         btn.style.cssText = 'min-width: 120px; font-size: 0.85rem;';
         btn.innerHTML = `
             <strong>${move.name}</strong><br>
-            <small>${move.type.name} | Pot: ${move.power}</small>
+            <small>${move.type.name} | ${categoryLabel} | Pot: ${move.power} | Acc: ${move.accuracy}%</small>
         `;
 
         btn.addEventListener('click', () => {
@@ -453,77 +438,130 @@ function displayMovesButtons(pokemon1, pokemon2) {
 }
 
 // ============================================
+// FUNZIONE: Esegui un singolo attacco (chiama il backend)
+// ============================================
+async function executeAttack(attacker, defender, move) {
+    const response = await fetch(`${API_BASE}/battle/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            attackerId: attacker.id,
+            defenderId: defender.id,
+            moveId: move.id
+        })
+    });
+    return await response.json();
+}
+
+// ============================================
+// FUNZIONE: Testo efficacia per il log
+// ============================================
+function getEffectivenessText(effectiveness) {
+    switch (effectiveness) {
+        case 'super':   return ' 🔥 È super efficace!';
+        case 'notVery': return ' 💤 Non è molto efficace...';
+        case 'immune':  return ' 🛡️ Non ha effetto!';
+        default:        return '';
+    }
+}
+
+// ============================================
 // FUNZIONE: Esegui un turno completo
-// Giocatore attacca con la mossa scelta, poi CPU risponde
+// L'ordine di attacco dipende dalla velocità dei Pokemon.
 // ============================================
 async function executeTurn(pokemon1, pokemon2, playerMove) {
     if (!battleInProgress) return;
 
-    // Disabilita i pulsanti durante il turno per evitare doppi click
     setMovesButtonsEnabled(false);
 
     try {
-        // ===== TURNO GIOCATORE: attacca con la mossa scelta =====
-        const playerResponse = await fetch(`${API_BASE}/battle/turn`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                attackerId: pokemon1.id,
-                defenderId: pokemon2.id,
-                moveId: playerMove.id
-            })
-        });
+        // Determina ordine di attacco in base alla velocità (come nei giochi originali)
+        // In caso di parità, ordine casuale (50/50)
+        let playerFaster;
+        const spd1 = Number(pokemon1.baseSpeed);
+        const spd2 = Number(pokemon2.baseSpeed);
+        if (spd1 > spd2) {
+            playerFaster = true;
+        } else if (spd2 > spd1) {
+            playerFaster = false;
+        } else {
+            playerFaster = Math.random() < 0.5;
+        }
+        console.log(`[SPEED] ${pokemon1.name}: ${spd1} | ${pokemon2.name}: ${spd2} | playerFirst: ${playerFaster}`);
 
-        const playerResult = await playerResponse.json();
+        if (playerFaster) {
+            // ===== GIOCATORE attacca per primo =====
+            const playerResult = await executeAttack(pokemon1, pokemon2, playerMove);
+            currentHpP2 -= playerResult.damage;
+            currentHpP2 = Math.max(0, currentHpP2);
+            updateHpBar('p2', currentHpP2, maxHpP2);
 
-        // Aggiorna gli HP della CPU
-        currentHpP2 -= playerResult.damage;
-        currentHpP2 = Math.max(0, currentHpP2);
+            if (playerResult.missed) {
+                addLogMessage(`💨 ${pokemon1.name} usa ${playerMove.name}... ma manca il bersaglio!`, 'info');
+            } else {
+                addLogMessage(
+                    `⚔️ ${pokemon1.name} usa ${playerMove.name}! Danno: ${playerResult.damage}${getEffectivenessText(playerResult.effectiveness)}`,
+                    'damage'
+                );
+            }
 
-        // Aggiorna la barra HP della CPU
-        updateHpBar('p2', currentHpP2, maxHpP2);
+            if (currentHpP2 <= 0) { endBattle(pokemon1, currentMatchIndex); return; }
 
-        // Aggiunge messaggio al log
-        addLogMessage(`⚔️ ${pokemon1.name} usa ${playerMove.name}! Danno: ${playerResult.damage}`, 'damage');
+            // ===== CPU risponde =====
+            const cpuMove = getRandomMove(pokemon2);
+            const cpuResult = await executeAttack(pokemon2, pokemon1, cpuMove);
+            currentHpP1 -= cpuResult.damage;
+            currentHpP1 = Math.max(0, currentHpP1);
+            updateHpBar('p1', currentHpP1, maxHpP1);
 
-        // Controlla se la CPU è KO
-        if (currentHpP2 <= 0) {
-            endBattle(pokemon1, currentMatchIndex);
-            return;
+            if (cpuResult.missed) {
+                addLogMessage(`💨 ${pokemon2.name} usa ${cpuMove.name}... ma manca il bersaglio!`, 'info');
+            } else {
+                addLogMessage(
+                    `💥 ${pokemon2.name} usa ${cpuMove.name}! Danno: ${cpuResult.damage}${getEffectivenessText(cpuResult.effectiveness)}`,
+                    'damage'
+                );
+            }
+
+            if (currentHpP1 <= 0) { endBattle(pokemon2, currentMatchIndex); return; }
+
+        } else {
+            // ===== CPU attacca per prima (più veloce) =====
+            const cpuMove = getRandomMove(pokemon2);
+            const cpuResult = await executeAttack(pokemon2, pokemon1, cpuMove);
+            currentHpP1 -= cpuResult.damage;
+            currentHpP1 = Math.max(0, currentHpP1);
+            updateHpBar('p1', currentHpP1, maxHpP1);
+
+            if (cpuResult.missed) {
+                addLogMessage(`💨 ${pokemon2.name} usa ${cpuMove.name}... ma manca il bersaglio!`, 'info');
+            } else {
+                addLogMessage(
+                    `💥 ${pokemon2.name} usa ${cpuMove.name}! Danno: ${cpuResult.damage}${getEffectivenessText(cpuResult.effectiveness)}`,
+                    'damage'
+                );
+            }
+
+            if (currentHpP1 <= 0) { endBattle(pokemon2, currentMatchIndex); return; }
+
+            // ===== GIOCATORE risponde =====
+            const playerResult = await executeAttack(pokemon1, pokemon2, playerMove);
+            currentHpP2 -= playerResult.damage;
+            currentHpP2 = Math.max(0, currentHpP2);
+            updateHpBar('p2', currentHpP2, maxHpP2);
+
+            if (playerResult.missed) {
+                addLogMessage(`💨 ${pokemon1.name} usa ${playerMove.name}... ma manca il bersaglio!`, 'info');
+            } else {
+                addLogMessage(
+                    `⚔️ ${pokemon1.name} usa ${playerMove.name}! Danno: ${playerResult.damage}${getEffectivenessText(playerResult.effectiveness)}`,
+                    'damage'
+                );
+            }
+
+            if (currentHpP2 <= 0) { endBattle(pokemon1, currentMatchIndex); return; }
         }
 
-        // ===== TURNO CPU: sceglie una mossa casuale =====
-        const cpuMove = getRandomMove(pokemon2);
-        addLogMessage(`🤖 ${pokemon2.name} usa ${cpuMove.name}!`, 'damage');
-
-        const cpuResponse = await fetch(`${API_BASE}/battle/turn`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                attackerId: pokemon2.id,
-                defenderId: pokemon1.id,
-                moveId: cpuMove.id
-            })
-        });
-
-        const cpuResult = await cpuResponse.json();
-
-        // Aggiorna gli HP del giocatore
-        currentHpP1 -= cpuResult.damage;
-        currentHpP1 = Math.max(0, currentHpP1);
-
-        // Aggiorna la barra HP del giocatore
-        updateHpBar('p1', currentHpP1, maxHpP1);
-
-        addLogMessage(`💥 ${pokemon2.name} infligge ${cpuResult.damage} danni a ${pokemon1.name}!`, 'damage');
-
-        // Controlla se il giocatore è KO
-        if (currentHpP1 <= 0) {
-            endBattle(pokemon2, currentMatchIndex);
-            return;
-        }
-
-        // Riabilita i pulsanti per il prossimo turno
         setMovesButtonsEnabled(true);
 
     } catch (error) {
